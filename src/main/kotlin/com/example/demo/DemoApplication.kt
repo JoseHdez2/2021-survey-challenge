@@ -50,16 +50,23 @@ class InterestsController(val interestsService: InterestsService) {
 	fun post(@RequestBody interest: Interest): Interest = interestsService.saveInterest(interest)
 }
 
+@RestController
+class UsersController(val users: UserRepository) {
+	@GetMapping("/users")
+	fun get(): List<User> = users.findAll()
+}
 
 @Configuration
 internal class LoadDatabase {
 	@Bean
-	fun initDatabase(products: ProductsRepository, users: UserRepository): CommandLineRunner {
+	fun initDatabase(products: ProductsService, users: UserRepository, interestsService: InterestsService): CommandLineRunner {
+		val usersMock = listOf("alice", "bob", "charlie")
+		val prods = listOf("Kotlin", "JavaScript", "PHP").map { Product(it.toLowerCase(), it, "programming_lang")}.toList()
+		val scores = usersMock.flatMap { u -> prods.map { Interest("", it.productId, u, (0..10).random().toFloat()) } }
 		return CommandLineRunner { _ : Array<String?>? ->
-			run { listOf("alice", "bob", "charlie").map{ println("Preloading " + users.save(User(it))) }}
-
-			println("Preloading " + products.save(Product("kotlin","Kotlin", "programming_languages")))
-			println("Preloading " + products.save(Product("js","JavaScript", "programming_languages")))
+			run { usersMock.map{ println("Preloading " + users.save(User(it))) }}
+			println("Preloading " + products.put(prods))
+			run { scores.map{ println("Preloading " + interestsService.saveInterest(it)) }}
 		}
 	}
 

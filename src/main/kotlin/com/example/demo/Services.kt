@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.bind.annotation.ResponseStatus
 import java.util.*
+import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id
 import kotlin.reflect.KClass
@@ -52,7 +53,7 @@ interface UserRepository : JpaRepository<User, String>
 
 // TODO improve this
 const val INTERESTS_VIEW = """
-    FROM Interest i 
+    Interest i 
         INNER JOIN Product p ON i.productId = p.productId
         INNER JOIN Category c ON p.category = c.category
 """
@@ -63,17 +64,17 @@ interface InterestsRepository : JpaRepository<Interest, String> {
 //    fun findProductScore(@Param("pi") productId: String): ProductScore?
 //    @Query("SELECT c.category as productId, AVG(score) as score $INTERESTS_VIEW WHERE c.category = :cat")
 //    fun findCategoryScore(@Param("cat") category: String): Category?
-    @Query("SELECT p.productId as productId, AVG(i.score) as score $INTERESTS_VIEW GROUP BY p.productId", nativeQuery = true)
+    @Query("SELECT new ProductScore(p.productId, AVG(i.score) as scoreMean) FROM $INTERESTS_VIEW GROUP BY p.productId")
     fun findAllProductScores(pageable: Pageable): Page<ProductScore>
-    @Query("SELECT c.category as category, AVG(i.score) as score $INTERESTS_VIEW GROUP BY c.category", nativeQuery = true)
+    @Query("SELECT new Category (c.category, AVG(i.score) as scoreMean) FROM $INTERESTS_VIEW GROUP BY c.category")
     fun findAllCategoryScores(pageable: Pageable): Page<Category>
 }
 
 class NotFoundException(private val msg: String) : Exception(msg)
 
 abstract class MyService<T : Any>(private val repository: CrudRepository<T, String>) {
-    fun findById(id: String) : T? = repository.findById(id).unwrap()
-    fun findByIdOrFail(id: String) : T = findById(id) ?: throw NotFoundException("${KClass<T>::java.name}: id $id doesn't exist.")
+    private fun findById(id: String) : T? = repository.findById(id).unwrap()
+    fun findByIdOrFail(id: String) : T = findById(id) ?: throw NotFoundException("${this.javaClass.simpleName}: id [$id] doesn't exist.")
     fun save(obj: T) : T = repository.save(obj)
 }
 
@@ -94,7 +95,7 @@ class ProductsService(val products: ProductsRepository,
     }
 
     fun updateScores(q: String, limit: Int, reverse: Boolean, save: Boolean = true): List<ProductScore> {
-        val sort = if (reverse) { Sort.by("score") } else { Sort.by("score").descending() }
+        val sort = if (reverse) { Sort.by("scoreMean") } else { Sort.by("scoreMean").descending() }
         val scores = interests.findAllProductScores(PageRequest.of(0, limit, sort))
         return if(save) productScores.saveAll(scores) else scores.content
     }
@@ -115,7 +116,7 @@ class ProductsService(val products: ProductsRepository,
 class CategoriesService(val categories: CategoryRepository,
                         val interests: InterestsRepository) : MyServiceWithScore<Category, Category>(categories) {
     override fun findAll(q: String, limit: Int, reverse: Boolean, save: Boolean): List<Category> {
-        val sort = if (reverse) { Sort.by("score") } else { Sort.by("score").descending() }
+        val sort = if (reverse) { Sort.by("scoreMean") } else { Sort.by("scoreMean").descending() }
         val scores = interests.findAllCategoryScores(PageRequest.of(0, limit, sort))
         val cats = categories.findAllById(scores.mapNotNull { it.category })
             .map{ c -> c.copy(score= scores.find { it.category == c.category }!!.score!!) }
