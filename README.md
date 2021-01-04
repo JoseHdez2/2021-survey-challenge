@@ -1,0 +1,5 @@
+- Common functionality for all services was expressed in the generic classes 
+- A distinction was made between finding a score in database vs. calculating it from scratch, as this operation will become more costly for bigger databases.
+- An important design decision is whether to calculate score on read (backload) or write (frontload). This will depend on the read-write ratio.
+  - An environment variable determines whether to calculate on read or write, to adapt to the read-write ratios of our use cases.
+- Database-level queries were used in favor of speed and scalability.
