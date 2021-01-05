@@ -28,6 +28,9 @@ class ProductsController(val productsService: ProductsService) {
 			@RequestParam(defaultValue = "false") reverse: Boolean
 	) = productsService.findAll(q, limit, reverse)
 
+	@GetMapping("/products/{id}")
+	fun getById(@RequestParam id: String): Product? = productsService.findByIdOrFail(id)
+
 	@PutMapping("/products")
 	fun put(@RequestBody products: List<Product>): List<Product> = productsService.put(products)
 }
@@ -39,6 +42,9 @@ class CategoriesController(val categoriesService: CategoriesService) {
 			@RequestParam(defaultValue = "10") limit: Int,
 			@RequestParam(defaultValue = "false") reverse: Boolean
 	) = categoriesService.findAll(q, limit, reverse)
+
+	@GetMapping("/categories/{id}")
+	fun getById(@RequestParam id: String): Category? = categoriesService.findByIdOrFail(id)
 
 	@PostMapping("/categories")
 	fun post(@RequestBody category: String) = categoriesService.save(Category(category, null))

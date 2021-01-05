@@ -19,11 +19,23 @@ import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.Id
 import kotlin.reflect.KClass
+import org.springframework.web.bind.annotation.ResponseBody
+
+import org.springframework.web.bind.annotation.ControllerAdvice
+import org.springframework.web.bind.annotation.ExceptionHandler
 
 fun <T> Optional<T>.unwrap(): T? = orElse(null) // https://stackoverflow.com/a/38767769/
 
 @ResponseStatus(value = HttpStatus.BAD_REQUEST)
 class BadRequestException(message: String): RuntimeException(message)
+
+@ControllerAdvice
+internal class NotFoundAdvice {
+    @ResponseBody
+    @ExceptionHandler(NotFoundException::class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    fun notFoundHandler(ex: NotFoundException): String? = ex.message
+}
 
 @Entity
 data class Product(@Id @JsonProperty("product_id") val productId: String, val name: String, val category: String)
@@ -51,7 +63,6 @@ interface ProductScoreRepository : JpaRepository<ProductScore, String>
 interface CategoryRepository : JpaRepository<Category, String>
 interface UserRepository : JpaRepository<User, String>
 
-// TODO improve this
 const val INTERESTS_VIEW = """
     Interest i 
         INNER JOIN Product p ON i.productId = p.productId
@@ -60,17 +71,19 @@ const val INTERESTS_VIEW = """
 
 interface InterestsRepository : JpaRepository<Interest, String> {
     fun findAllByProductId(productId: String) : List<Interest>
-//    @Query("SELECT p.productId as productId, AVG(score) as score $INTERESTS_VIEW WHERE p.productId = :pi")
-//    fun findProductScore(@Param("pi") productId: String): ProductScore?
-//    @Query("SELECT c.category as productId, AVG(score) as score $INTERESTS_VIEW WHERE c.category = :cat")
-//    fun findCategoryScore(@Param("cat") category: String): Category?
+    @Query("SELECT i FROM $INTERESTS_VIEW WHERE c.category = ?1")
+    fun findAllByCategory(category: String) : List<Interest>
+    @Query("SELECT new ProductScore(p.productId, AVG(i.score)) FROM $INTERESTS_VIEW WHERE p.productId = :pi")
+    fun findProductScore(@Param("pi") productId: String): ProductScore?
+    @Query("SELECT new ProductScore(p.productId, AVG(i.score)) FROM $INTERESTS_VIEW WHERE c.category = :cat")
+    fun findCategoryScore(@Param("cat") category: String): Category?
     @Query("SELECT new ProductScore(p.productId, AVG(i.score) as scoreMean) FROM $INTERESTS_VIEW GROUP BY p.productId")
     fun findAllProductScores(pageable: Pageable): Page<ProductScore>
     @Query("SELECT new Category (c.category, AVG(i.score) as scoreMean) FROM $INTERESTS_VIEW GROUP BY c.category")
     fun findAllCategoryScores(pageable: Pageable): Page<Category>
 }
 
-class NotFoundException(private val msg: String) : Exception(msg)
+class NotFoundException(msg: String) : Exception(msg)
 
 abstract class MyService<T : Any>(private val repository: CrudRepository<T, String>) {
     private fun findById(id: String) : T? = repository.findById(id).unwrap()
