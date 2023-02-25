@@ -1,6 +1,10 @@
 ## 2021-survey-challenge
 Production-ready REST API for a challenge.
 
+![Spring](https://img.shields.io/badge/spring-%236DB33F.svg?style=for-the-badge&logo=spring&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white)
+
 - Used Spring Boot as a tried-and-tested framework for API production.
   - Common functionality for all services was expressed in generic classes. 
 - An important design decision is whether to calculate score on read (backload) or write (frontload). This will depend on the read-write ratio.
